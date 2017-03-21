@@ -26,11 +26,23 @@ async def on_ready():
 
 
 @bot.event
+async def on_member_join(member):
+    server = member.server.id
+    c = member.server.default_channel
+    try:
+        msg = config.get(server, 'welcome_msg')
+    except:
+        await bot.send_message(c, f'<@{member.id}>, Welcome to the discord!')
+        return
+    await bot.send_message(c, f'<@{member.id}>, Welcome to the discord! {msg}')
+
+
+@bot.event
 async def on_message(message):
     c = message.channel
 
     async def do_test():
-        await bot.send_message(c, 'AAAAAAAAAAAAAAAAAAAAAAAAA!')
+        await bot.send_message(c, f'<@{message.author.id}> AAAAAAAAAAAAAAAAAAAAAAAAA!')
 
     async def do_help():
         cmdstr = 'Commands: '
@@ -122,55 +134,54 @@ async def on_message(message):
 
         async def cfg_add():
             try:
-                if config[message.channel.id]:
+                if config[message.server.id]:
                     await bot.send_message(c, 'The channel is already configured.')
             except:
-                config[message.channel.id] = {
+                config[message.server.id] = {
                     'server_api_1': '',
                     'server_api_2': '',
+                    'welcome_msg': '',
                 }
-                with open('dbot_config.ini', 'w') as f:
-                    config.write(f)
-                await bot.send_message(c, 'Success.')
 
         async def cfg_ip():
             ip = message.content.split()[2]
-            config[message.channel.id]['server_api_1'] = f'https://mcapi.us/server/status?ip={ip}'
-            config[message.channel.id]['server_api_2'] = f'https://eu.mc-api.net/v3/server/ping/{ip}'
-            with open('dbot_config.ini', 'w') as f:
-                config.write(f)
-            await bot.send_message(c, 'Success.')
+            config[message.server.id]['server_api_1'] = f'https://mcapi.us/server/status?ip={ip}'
+            config[message.server.id]['server_api_2'] = f'https://eu.mc-api.net/v3/server/ping/{ip}'
 
         async def cfg_port():
             port = message.content.split()[2]
             try:
-                config.get(message.channel.id, 'server_api_1')
-                config.get(message.channel.id, 'server_api_2')
+                config.get(message.server.id, 'server_api_1')
+                config.get(message.server.id, 'server_api_2')
             except:
                 await bot.send_message(c, 'IP not configured.')
                 return
-            config[message.channel.id]['server_api_1'] += f'&port={port}'
-            config[message.channel.id]['server_api_2'] += f'%3A{port}'
-            with open('dbot_config.ini', 'w') as f:
-                config.write(f)
-            await bot.send_message(c, 'Success.')
+            config[message.server.id]['server_api_1'] += f'&port={port}'
+            config[message.server.id]['server_api_2'] += f'%3A{port}'
 
-        appinfo = await bot.application_info()
-        if message.author.display_name != appinfo.owner.name:
-            await bot.send_message(c, f'Only the bot owner can configure this bot. The owner is {appinfo.owner.name}')
+        async def cfg_wmsg():
+            msg = message.content.split('wmsg')[1].strip()
+            config[message.server.id]['welcome_msg'] = msg
 
         subcommands = {
             'add': cfg_add,
             'ip': cfg_ip,
             'port': cfg_port,
+            'wmsg': cfg_wmsg,
         }
 
-        if not config.read('dbot_config.ini'):
+        appinfo = await bot.application_info()
+
+        if message.author.display_name != appinfo.owner.name and not message.author.server_permissions.manage_server:
+            await bot.send_message(c, 'You don\'t have the proper permissions to configure this bot.')
             return
 
         for i in subcommands:
             if message.content.split()[1] == i:
                 await subcommands[i]()
+                with open('dbot_config.ini', 'w') as f:
+                    config.write(f)
+                await bot.send_message(c, 'Success.')
 
     cmd_dict = {'!test': do_test,
                 '!help': do_help,
@@ -188,8 +199,8 @@ async def on_message(message):
     print('{}: {}'.format(message.author, message.content))
 
     try:
-        server_api = config.get(message.channel.id, 'server_api_1')
-        server_api2 = config.get(message.channel.id, 'server_api_2')
+        server_api = config.get(message.server.id, 'server_api_1')
+        server_api2 = config.get(message.server.id, 'server_api_2')
 
     except configparser.NoSectionError:
         server_api = None
@@ -203,4 +214,4 @@ async def on_message(message):
             except:
                 await bot.send_message(c, 'Error! {}'.format(sys.exc_info()[1]))
 
-bot.run('Mjg0MTA2OTA2OTQ1OTc4MzY4.C5UBCQ.S1at3ApJVppNfyGJiCdHmu7PAGA')
+bot.run('redacted')
