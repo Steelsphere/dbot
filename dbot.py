@@ -188,14 +188,12 @@ async def on_message(message):
     print('{}: {}'.format(message.author, message.content))
 
     try:
-        server_api = config.get(message.channel.id, 'server_api_1')[:-1]
-        server_api2 = config.get(message.channel.id, 'server_api_2')[:-1]
+        server_api = config.get(message.channel.id, 'server_api_1')
+        server_api2 = config.get(message.channel.id, 'server_api_2')
 
     except configparser.NoSectionError:
         server_api = None
         server_api2 = None
-
-    print(server_api, server_api2)
 
     for i in cmd_dict:
         if message.content.startswith(i):
@@ -205,5 +203,4 @@ async def on_message(message):
             except:
                 await bot.send_message(c, 'Error! {}'.format(sys.exc_info()[1]))
 
-bot.run('redacted')
-
+bot.run('Mjg0MTA2OTA2OTQ1OTc4MzY4.C5UBCQ.S1at3ApJVppNfyGJiCdHmu7PAGA')
