@@ -195,8 +195,6 @@ async def on_message(message):
         server_api = None
         server_api2 = None
 
-    print(server_api, server_api2)
-
     for i in cmd_dict:
         if message.content.startswith(i):
             print('Sending message to', message.channel.name)
