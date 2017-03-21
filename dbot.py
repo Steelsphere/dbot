@@ -206,3 +206,4 @@ async def on_message(message):
                 await bot.send_message(c, 'Error! {}'.format(sys.exc_info()[1]))
 
 bot.run('redacted')
+
