@@ -214,6 +214,7 @@ async def on_message(message):
         if message.content.startswith(i):
             print('Sending message to', message.channel.name)
             try:
+                await bot.send_typing(c)
                 await cmd_dict[i]()
             except:
                 await bot.send_message(c, 'Error! {}'.format(sys.exc_info()[1]))
