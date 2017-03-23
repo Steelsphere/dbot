@@ -32,9 +32,13 @@ async def on_member_join(member):
     try:
         msg = config.get(server, 'welcome_msg')
     except:
-        await bot.send_message(c, f'<@{member.id}>, Welcome to the discord!')
+        await bot.send_message(c, f'<@{member.id}>, Welcome to the discord! '
+                               'There is supposed to be more text here '
+                               'but something messed up of course.')
         return
     await bot.send_message(c, f'<@{member.id}>, Welcome to the discord! {msg}')
+
+
 
 
 @bot.event
@@ -183,8 +187,7 @@ async def on_message(message):
                     config.write(f)
                 await bot.send_message(c, 'Success.')
 
-    cmd_dict = {'!test': do_test,
-                '!help': do_help,
+    cmd_dict = {'!help': do_help,
                 '!online': do_online,
                 '!motd': do_motd,
                 '!players': do_players,
@@ -194,6 +197,7 @@ async def on_message(message):
                 '!coinflip': do_coinflip,
                 '!diceroll': do_diceroll,
                 '!config': do_config,
+                '!test': do_test,
                 }
 
     print('{}: {}'.format(message.author, message.content))
