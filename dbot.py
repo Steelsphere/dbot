@@ -32,9 +32,7 @@ async def on_member_join(member):
     try:
         msg = config.get(server, 'welcome_msg')
     except:
-        await bot.send_message(c, f'<@{member.id}>, Welcome to the discord! '
-                               'There is supposed to be more text here '
-                               'but something messed up of course.')
+        await bot.send_message(c, f'<@{member.id}>, Welcome to the discord!')
         return
     await bot.send_message(c, f'<@{member.id}>, Welcome to the discord! {msg}')
 
@@ -140,6 +138,7 @@ async def on_message(message):
             try:
                 if config[message.server.id]:
                     await bot.send_message(c, 'The channel is already configured.')
+                    return
             except:
                 config[message.server.id] = {
                     'server_api_1': '',
@@ -207,8 +206,8 @@ async def on_message(message):
         server_api2 = config.get(message.server.id, 'server_api_2')
 
     except configparser.NoSectionError:
-        server_api = None
-        server_api2 = None
+        server_api = ''
+        server_api2 = ''
 
     for i in cmd_dict:
         if message.content.startswith(i):
