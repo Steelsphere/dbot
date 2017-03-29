@@ -3,7 +3,7 @@
 #server_api2 = 'https://eu.mc-api.net/v3/server/ping/167.114.1.89%3A25754'
 
 
-import discord, sys, re, urllib.request, datetime, random, configparser
+import discord, sys, urllib.request, datetime, random, configparser, json
 
 bot = discord.Client()
 config = configparser.RawConfigParser()
@@ -53,73 +53,55 @@ async def on_message(message):
         await bot.send_message(c, cmdstr)
 
     async def do_online():
-        regex = re.compile(r'"online":true')
         download = urllib.request.urlopen(server_api)
-        match = regex.search(str(download.read()))
-        if match:
-            await bot.send_message(c, 'The server is online.')
-        else:
-            await bot.send_message(c, 'The server is offline.')
+        data = json.loads(download.read())
+        online = data['online']
+        await bot.send_message(c, online)
 
     async def do_motd():
-        regex = re.compile(r'"motd":"[A-z+ 0-9]+"')
         download = urllib.request.urlopen(server_api)
-        match = regex.search((str(download.read())))
-        if not match:
-            await bot.send_message(c, 'Failed to get the MOTD.')
-            return
-        match = match.group()
-        string = str(match).split(':')[1]
-        await bot.send_message(c, 'The MOTD is: {}'.format(string))
+        data = json.loads(download.read())
+        motd = data['motd']
+        await bot.send_message(c, f'MOTD: {motd}')
 
     async def do_players():
-        regex = re.compile(r'"players":{"max":[0-9]+,"now":[0-9]+}')
         download = urllib.request.urlopen(server_api)
-        match = regex.search(str(download.read()))
-        if not match:
-            await bot.send_message(c, 'Failed to get the players.')
-            return
-        string = match.group()
-        string = string.split(':', maxsplit=1)[1]
-        strmax = string.split(',')[0].split(':')[1]
-        strnow = string.split(',')[1].split(':')[1].strip('}')
-        await bot.send_message(c, 'Now = {} / Max = {}'.format(strnow, strmax))
+        data = json.loads(download.read())
+        max = data['players']['max']
+        now = data['players']['now']
+        await bot.send_message(c, f'Max: {max}')
+        await bot.send_message(c, f'Now: {now}')
 
     async def do_lastonline():
-        regex = re.compile(r'"last_online":"[0-9]+"')
         download = urllib.request.urlopen(server_api)
-        match = regex.search(str(download.read()))
-        if not match:
-            await bot.send_message(c, 'Failed.')
-            return
-        string = match.group()
-        timestamp = string.split(':')[1].strip('"')
+        data = json.loads(download.read())
+        timestamp = data['last_online']
         time = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S')
         await bot.send_message(c, 'The server was last online at: {}'.format(time))
 
     async def do_lastupdated():
-        regex = re.compile(r'"last_updated":"[0-9]+"')
         download = urllib.request.urlopen(server_api)
-        match = regex.search(str(download.read()))
-        if not match:
-            await bot.send_message(c, 'Failed.')
-            return
-        string = match.group()
-        timestamp = string.split(':')[1].strip('"')
+        data = json.loads(download.read())
+        timestamp = data['last_updated']
         time = datetime.datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S')
         await bot.send_message(c, 'The last time the server API updated was at: {}'.format(time))
 
     async def do_playerlist():
-        regex = re.compile(r'{"id":"[A-z 0-9 -]+","name":"[A-z 0-9]+"}')
         download = urllib.request.urlopen(server_api2)
-        match_list = regex.findall(str(download.read()))
-        if not match_list:
-            await bot.send_message(c, 'There are no players online.')
-            return
-        for i in range(len(match_list)):
-            match_list[i] = match_list[i].split(',')[1].split(':')[1].strip('}')
-        string = 'Players online: '
-        for i in match_list:
+        data = json.loads(download.read())
+        player_list = []
+        try:
+            for i in data['players']['sample']:
+                player_list.append(i['name'])
+        except KeyError:
+            if data['online'] == False:
+                await bot.send_message(c, 'Failed. The server is offline.')
+                return
+            else:
+                await bot.send_message(c, 'There are no players online.')
+                return
+        string = ''
+        for i in player_list:
             string += '{}, '.format(i)
         await bot.send_message(c, string)
 
@@ -186,6 +168,27 @@ async def on_message(message):
                     config.write(f)
                 await bot.send_message(c, 'Success.')
 
+    async def do_version():
+        download = urllib.request.urlopen(server_api2)
+        data = json.loads(download.read())
+        version = data['version']['name']
+        await bot.send_message(c, f'Minecraft version {version}')
+
+    async def do_modlist():
+        download = urllib.request.urlopen(server_api2)
+        data = json.loads(download.read())
+        mod_list = []
+        string1 = ''
+        string2 = ''
+        for i in data['modinfo']['modList']:
+            mod_list.append(i['modid'])
+        for i in range(int(len(mod_list) / 2)):
+            string1 += f'{mod_list[i]}, '
+        for i in range(int(len(mod_list) / 2), len(mod_list)):
+            string2 += f'{mod_list[i]}, '
+        await bot.send_message(c, string1)
+        await bot.send_message(c, string2)
+
     cmd_dict = {'!help': do_help,
                 '!online': do_online,
                 '!motd': do_motd,
@@ -197,6 +200,8 @@ async def on_message(message):
                 '!diceroll': do_diceroll,
                 '!config': do_config,
                 '!test': do_test,
+                '!version': do_version,
+                '!modlist': do_modlist,
                 }
 
     print('{}: {}'.format(message.author, message.content))
@@ -216,6 +221,6 @@ async def on_message(message):
                 await bot.send_typing(c)
                 await cmd_dict[i]()
             except:
-                await bot.send_message(c, 'Error! {}'.format(sys.exc_info()[1]))
+                await bot.send_message(c, 'Error! {} {}'.format(sys.exc_info()[1], sys.exc_info()[0]))
 
 bot.run('redacted')
