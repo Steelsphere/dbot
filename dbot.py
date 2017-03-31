@@ -11,9 +11,6 @@ config = configparser.RawConfigParser()
 
 @bot.event
 async def on_ready():
-    if not config.read('dbot_config.ini'):
-        with open('dbot_config.ini', 'w') as f:
-            f.write('#DBOT NOT CONFIGURED')
 
     print('Logged in: {}'.format(bot.is_logged_in))
     info = await bot.application_info()
@@ -24,15 +21,20 @@ async def on_ready():
                                                                                         info.icon_url,
                                                                                         info.owner.name,))
 
+    if not config.read('dbot_config.ini'):
+        with open('dbot_config.ini', 'w') as f:
+            f.write('#DBOT NOT CONFIGURED')
+
 
 @bot.event
 async def on_member_join(member):
-    server = member.server.id
+    server_id = member.server.id
     c = member.server.default_channel
     try:
-        msg = config.get(server, 'welcome_msg')
-    except:
-        await bot.send_message(c, f'<@{member.id}>, Welcome to the discord!')
+        if not config.get(server_id, 'welcome_msg_enabled'):
+            return
+        msg = config.get(server_id, 'welcome_msg')
+    except configparser.NoSectionError:
         return
     await bot.send_message(c, f'<@{member.id}>, Welcome to the discord! {msg}')
 
@@ -43,28 +45,48 @@ async def on_member_join(member):
 async def on_message(message):
     c = message.channel
 
-    async def do_test():
-        await bot.send_message(c, f'<@{message.author.id}> AAAAAAAAAAAAAAAAAAAAAAAAA!')
-
     async def do_help():
+        """
+        Shows the list of commands
+        Can also do !help [command] for specific info
+        """
+
+        if len(message.content.split()) > 1:
+            for i in cmd_dict:
+                if message.content.split()[1] == i:
+                    await bot.send_message(c, f'Help for {i}: {cmd_dict[i].__doc__}')
+                    return
+
         cmdstr = 'Commands: '
         for i in cmd_dict:
             cmdstr += '{}, '.format(i)
         await bot.send_message(c, cmdstr)
 
     async def do_online():
+        """
+        Gets the status of the server
+        """
+
         download = urllib.request.urlopen(server_api)
         data = json.loads(download.read())
         online = data['online']
         await bot.send_message(c, online)
 
     async def do_motd():
+        """
+        Gets the MOTD of the server
+        """
+
         download = urllib.request.urlopen(server_api)
         data = json.loads(download.read())
         motd = data['motd']
         await bot.send_message(c, f'MOTD: {motd}')
 
     async def do_players():
+        """
+        Gets the maximum and current number of players on the server
+        """
+
         download = urllib.request.urlopen(server_api)
         data = json.loads(download.read())
         max = data['players']['max']
@@ -73,6 +95,10 @@ async def on_message(message):
         await bot.send_message(c, f'Now: {now}')
 
     async def do_lastonline():
+        """
+        Gets the time the server was last online
+        """
+
         download = urllib.request.urlopen(server_api)
         data = json.loads(download.read())
         timestamp = data['last_online']
@@ -80,6 +106,10 @@ async def on_message(message):
         await bot.send_message(c, 'The server was last online at: {}'.format(time))
 
     async def do_lastupdated():
+        """
+        Gets the last time the server API was updated
+        """
+
         download = urllib.request.urlopen(server_api)
         data = json.loads(download.read())
         timestamp = data['last_updated']
@@ -87,6 +117,10 @@ async def on_message(message):
         await bot.send_message(c, 'The last time the server API updated was at: {}'.format(time))
 
     async def do_playerlist():
+        """
+        Gets a list of the players currently online
+        """
+
         download = urllib.request.urlopen(server_api2)
         data = json.loads(download.read())
         player_list = []
@@ -106,15 +140,31 @@ async def on_message(message):
         await bot.send_message(c, string)
 
     async def do_coinflip():
+        """
+        Simulates a coinflip
+        """
+
         coin = ['heads', 'tails']
         rnd = random.choice(coin)
         await bot.send_message(c, '{} flipped a coin! It landed on {}.'.format(message.author.display_name, rnd))
 
     async def do_diceroll():
+        """
+        Simulates a dice roll
+        """
+
         rnd = random.randrange(1, 13)
         await bot.send_message(c, '{} rolled a die! It landed on {}.'.format(message.author.display_name, rnd))
 
     async def do_config():
+        """
+        Configures the bot
+        use !config add to add the discord server to the config
+        use !config ip [ip] to set the MC server to pull data from
+        use !config port [port] to set the port of the MC server
+        Must have the \"Manage server\" permission or be the owner of the bot to use
+        """
+
 
         async def cfg_add():
             try:
@@ -125,6 +175,7 @@ async def on_message(message):
                 config[message.server.id] = {
                     'server_api_1': '',
                     'server_api_2': '',
+                    'welcome_msg enabled': False,
                     'welcome_msg': '',
                 }
 
@@ -169,12 +220,20 @@ async def on_message(message):
                 await bot.send_message(c, 'Success.')
 
     async def do_version():
+        """
+        Gets the Minecraft version of the server
+        """
+
         download = urllib.request.urlopen(server_api2)
         data = json.loads(download.read())
         version = data['version']['name']
         await bot.send_message(c, f'Minecraft version {version}')
 
     async def do_modlist():
+        """
+        Gets a list of the mods the server has, if it has any
+        """
+
         download = urllib.request.urlopen(server_api2)
         data = json.loads(download.read())
         mod_list = []
@@ -199,7 +258,6 @@ async def on_message(message):
                 '!coinflip': do_coinflip,
                 '!diceroll': do_diceroll,
                 '!config': do_config,
-                '!test': do_test,
                 '!version': do_version,
                 '!modlist': do_modlist,
                 }
@@ -221,6 +279,6 @@ async def on_message(message):
                 await bot.send_typing(c)
                 await cmd_dict[i]()
             except:
-                await bot.send_message(c, 'Error! {} {}'.format(sys.exc_info()[1], sys.exc_info()[0]))
+                await bot.send_message(c, f'Error! {sys.exc_info()[1]} {sys.exc_info()[0]}')
 
 bot.run('redacted')
